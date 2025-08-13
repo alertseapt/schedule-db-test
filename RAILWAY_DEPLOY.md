@@ -23,6 +23,14 @@ npm install
 npm start
 ```
 
+## 🗄️ Driver MySQL
+
+**Driver:** `mysql` (Oficial) - Mais estável que `mysql2`
+- ✅ **Driver oficial** do MySQL
+- ✅ **Melhor compatibilidade** com diferentes versões
+- ✅ **Mais estável** em ambientes cloud como Railway
+- ✅ **Suporte nativo** a Promises (via wrapper)
+
 ## 🧪 Endpoints de Teste
 
 ### Health Check
@@ -74,6 +82,7 @@ A API agora inclui logs detalhados:
 - ⏱️ Tempo de execução
 - 🌍 Informações do ambiente
 - 📊 Detalhes de erro com códigos
+- 🔌 Driver MySQL utilizado
 
 ## 🚀 Deploy Automático
 
@@ -96,3 +105,9 @@ A API agora inclui logs detalhados:
 3. Teste localmente primeiro
 4. Verifique os logs do Railway
 5. Use `/test/mysql-direct` para bypass do TCP
+
+### Vantagens do Driver Oficial:
+- **Mais estável** em ambientes cloud
+- **Melhor compatibilidade** com diferentes versões MySQL
+- **Menos problemas** de conectividade
+- **Suporte oficial** da Oracle

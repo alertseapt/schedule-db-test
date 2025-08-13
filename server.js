@@ -1,5 +1,5 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
+const mysql = require('mysql');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -38,6 +38,49 @@ const cloudDbConfig = {
   debug: false                  // Debug desabilitado
 };
 
+// Função para converter callbacks em Promises
+const promisifyQuery = (connection, query, params = []) => {
+  return new Promise((resolve, reject) => {
+    connection.query(query, params, (error, results) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+// Função para criar conexão MySQL com Promise
+const createConnection = (config) => {
+  return new Promise((resolve, reject) => {
+    const connection = mysql.createConnection(config);
+    connection.connect((error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(connection);
+      }
+    });
+  });
+};
+
+// Função para fechar conexão MySQL com Promise
+const endConnection = (connection) => {
+  return new Promise((resolve) => {
+    if (connection) {
+      connection.end((error) => {
+        if (error) {
+          console.log('⚠️ Erro ao fechar conexão:', error.message);
+        }
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
+};
+
 console.log('🧪 API de Teste MySQL');
 console.log('===================');
 console.log(`📡 Host: ${dbConfig.host}:${dbConfig.port}`);
@@ -46,6 +89,7 @@ console.log(`🔑 Password: ***`);
 console.log(`🌐 Porta API: ${PORT}`);
 console.log(`☁️  Ambiente: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🌍 Railway: ${process.env.RAILWAY_ENVIRONMENT ? 'Sim' : 'Não'}`);
+console.log(`🔌 Driver: MySQL Oficial (mysql)`);
 
 // Função para testar TCP
 const testTCP = async (host, port) => {
@@ -103,14 +147,14 @@ const testMySQL = async (database) => {
   console.log(`🗄️ Tentando conectar ao banco ${database}...`);
   
   try {
-    connection = await mysql.createConnection({
+    connection = await createConnection({
       ...cloudDbConfig,
       database,
     });
     
     console.log(`✅ Conectado ao ${database}, executando query...`);
     
-    const [rows] = await connection.execute('SELECT 1 as test, COUNT(*) as total FROM information_schema.tables WHERE table_schema = ?', [database]);
+    const [rows] = await promisifyQuery(connection, 'SELECT 1 as test, COUNT(*) as total FROM information_schema.tables WHERE table_schema = ?', [database]);
     const duration = Date.now() - start;
     
     console.log(`✅ Query executada em ${database}: ${rows[0].total} tabelas encontradas`);
@@ -141,7 +185,7 @@ const testMySQL = async (database) => {
   } finally {
     if (connection) {
       try {
-        await connection.end();
+        await endConnection(connection);
         console.log(`🔒 Conexão com ${database} fechada`);
       } catch (e) {
         console.log(`⚠️ Erro ao fechar conexão com ${database}:`, e.message);
@@ -208,15 +252,15 @@ app.get('/test/mysql', async (req, res) => {
   console.log('🗄️ Testando conexão MySQL básica...');
   
   try {
-    let connection = await mysql.createConnection({
+    let connection = await createConnection({
       ...cloudDbConfig
     });
     
     const start = Date.now();
-    const [rows] = await connection.execute('SELECT 1 as test, NOW() as timestamp, VERSION() as version');
+    const [rows] = await promisifyQuery(connection, 'SELECT 1 as test, NOW() as timestamp, VERSION() as version');
     const duration = Date.now() - start;
     
-    await connection.end();
+    await endConnection(connection);
     
     console.log(`✅ MySQL conectado (${duration}ms)`);
     
@@ -286,17 +330,17 @@ app.get('/test/users', async (req, res) => {
   console.log('👥 Testando tabela de usuários...');
   
   try {
-    let connection = await mysql.createConnection({
+    let connection = await createConnection({
       ...dbConfig,
       database: 'dbusers',
       connectTimeout: 30000,
       ssl: false
     });
     
-    const [users] = await connection.execute('SELECT id, user, name, level_access FROM users LIMIT 5');
-    const [count] = await connection.execute('SELECT COUNT(*) as total FROM users');
+    const [users] = await promisifyQuery(connection, 'SELECT id, user, name, level_access FROM users LIMIT 5');
+    const [count] = await promisifyQuery(connection, 'SELECT COUNT(*) as total FROM users');
     
-    await connection.end();
+    await endConnection(connection);
     
     console.log(`✅ Usuários encontrados: ${count[0].total}`);
     
@@ -356,11 +400,11 @@ app.get('/test/complete', async (req, res) => {
     // 2. MySQL básico
     console.log('\n2️⃣ Testando MySQL básico...');
     try {
-      let connection = await mysql.createConnection({
+      let connection = await createConnection({
         ...cloudDbConfig
       });
-      const [basic] = await connection.execute('SELECT 1 as test, VERSION() as version');
-      await connection.end();
+      const [basic] = await promisifyQuery(connection, 'SELECT 1 as test, VERSION() as version');
+      await endConnection(connection);
       results.mysql_basic = { success: true, data: basic[0] };
       console.log(`✅ MySQL básico: OK (versão ${basic[0].version})`);
     } catch (error) {
@@ -433,11 +477,11 @@ app.get('/test/mysql-direct', async (req, res) => {
     // 1. MySQL básico
     console.log('1️⃣ MySQL básico...');
     try {
-      let connection = await mysql.createConnection({
+      let connection = await createConnection({
         ...cloudDbConfig
       });
-      const [basic] = await connection.execute('SELECT 1 as test, VERSION() as version, NOW() as timestamp');
-      await connection.end();
+      const [basic] = await promisifyQuery(connection, 'SELECT 1 as test, VERSION() as version, NOW() as timestamp');
+      await endConnection(connection);
       results.mysql_basic = { success: true, data: basic[0] };
       console.log(`✅ MySQL básico: OK (versão ${basic[0].version})`);
     } catch (error) {
